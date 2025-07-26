@@ -17,10 +17,32 @@ function Signup() {
     otp: ""
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleUsernameChange = async (e) => {
+    const value = e.target.value;
+    setUsername(value);
+    setForm({ ...form, username: value }); // yahan add karein
+
+    if (value.length > 2) {
+      try {
+        const res = await axios.post("http://localhost:5000/api/check-username", {
+          username: value,
+        });
+        setUsernameStatus(res.data.exists ? "Username already taken" : "Username available");
+      } catch (error) {
+        setUsernameStatus("Error checking username");
+      }
+    } else {
+      setUsernameStatus("");
+    }
   };
 
   const checkUsername = async () => {
@@ -28,7 +50,7 @@ function Signup() {
       const res = await axios.post("http://localhost:5000/api/check-username", {
         username: form.username,
       });
-      return res.data.available; // true or false
+      return !res.data.exists; // agar exists false hai toh username available hai
     } catch (error) {
       alert("Error checking username");
       return false;
@@ -45,12 +67,15 @@ function Signup() {
   };
 
   const handleSendOtp = async () => {
+    setLoading(true);
     try {
       await axios.post("http://localhost:5000/api/send-otp", { email: form.email });
       alert("OTP sent to email");
       setStep(3);
     } catch {
       alert("Failed to send OTP");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,12 +107,16 @@ function Signup() {
         <p className="subtitle">Quick & easy signup in 3 steps</p>
 
         {step === 1 && (
-          <>
+          <div
+            onKeyDown={e => {
+              if (e.key === "Enter") handleNextStep();
+            }}
+          >
             <input
               className="input-field"
               name="username"
               placeholder="Username"
-              onChange={handleChange}
+              onChange={handleUsernameChange}
               required
             />
             <div className="password-wrapper">
@@ -103,19 +132,23 @@ function Signup() {
                 {showPassword ? <FaEyeSlash /> : <FaEye />}
               </span>
             </div>
-          <button
-  className="next-btn"
-  onClick={() => setStep(2)}
-  disabled={!form.username || !form.password}
->
-  Next
-</button>
-
-          </>
+            <p>{usernameStatus}</p>
+            <button
+              className="next-btn"
+              onClick={handleNextStep}
+              disabled={!form.username || !form.password}
+            >
+              Next
+            </button>
+          </div>
         )}
 
         {step === 2 && (
-          <>
+          <div
+            onKeyDown={e => {
+              if (e.key === "Enter") handleSendOtp();
+            }}
+          >
             <input
               className="input-field"
               name="phone"
@@ -141,15 +174,19 @@ function Signup() {
             <button
               className="next-btn"
               onClick={handleSendOtp}
-              disabled={!form.email}
+              disabled={!form.email || loading}
             >
-              Send OTP
+              {loading ? "Sending OTP..." : "Send OTP"}
             </button>
-          </>
+          </div>
         )}
 
         {step === 3 && (
-          <>
+          <div
+            onKeyDown={e => {
+              if (e.key === "Enter") handleSignup();
+            }}
+          >
             <input
               className="input-field"
               name="otp"
@@ -164,7 +201,7 @@ function Signup() {
             >
               Sign Up
             </button>
-          </>
+          </div>
         )}
 
         <p className="bottom-link">
